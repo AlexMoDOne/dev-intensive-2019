@@ -2,7 +2,6 @@ package ru.skillbranch.devintensive.extensions
 
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.abs
 
 const val SECOND = 1000L
 const val MINUTE = 60 * SECOND
@@ -25,41 +24,52 @@ fun Date.add(value: Int, units: TimeUnits = TimeUnits.SECOND): Date {
     this.time = time
     return this
 }
+
 fun Date.humanizeDiff(date: Date = Date()): String {
-    val isInPast = date.time >= this.time
-    return when (val diff = (abs(date.time - this.time))) {
-        in TimeUnits.SECOND.toMillis(0)..TimeUnits.SECOND.toMillis(1) -> "только что"
-        in TimeUnits.SECOND.toMillis(0)..TimeUnits.SECOND.toMillis(45) -> if (isInPast) "несколько секунд назад"  else "через несколько секунд"
-        in TimeUnits.SECOND.toMillis(45)..TimeUnits.SECOND.toMillis(75) -> if (isInPast) "минуту назад"  else "через минуту"
-        in TimeUnits.SECOND.toMillis(75)..TimeUnits.MINUTE.toMillis(45) -> TimeUnits.MINUTE.getDeclensionRepresentation(diff, isInPast)
-        in TimeUnits.MINUTE.toMillis(45)..TimeUnits.MINUTE.toMillis(75) -> if (isInPast) "час назад" else "через час"
-        in TimeUnits.MINUTE.toMillis(75)..TimeUnits.HOUR.toMillis(22) -> TimeUnits.HOUR.getDeclensionRepresentation(diff, isInPast)
-        in TimeUnits.HOUR.toMillis(22)..TimeUnits.HOUR.toMillis(26) -> if (isInPast) "день назад" else "через день"
-        in TimeUnits.HOUR.toMillis(26)..TimeUnits.DAY.toMillis(360) -> TimeUnits.DAY.getDeclensionRepresentation(diff, isInPast)
-        else -> if (isInPast) "более года назад" else "более чем через год"
+    val interval: Long = (date.time - this.time)
+    val msec = if (interval > 0) interval else -interval
+    val future = interval < msec
+
+    if (msec <= 1000L) return "только что"
+
+    val sec: Long = msec / 1000L
+    if (sec <= 45) return "${if (future) "через " else ""}несколько секунд${if (future) "" else " назад"}"
+    if (sec <= 75) return "${if (future) "через " else ""}минуту${if (future) "" else " назад"}"
+
+    val min: Long = sec / 60
+    if (min <= 45L) return "${if (future) "через " else ""}${TimeUnits.MINUTE.plural(min.toInt())}${if (future) "" else " назад"}"
+    if (min <= 75L) return "${if (future) "через " else ""}час${if (future) "" else " назад"}"
+
+    val hour: Long = min / 60
+    if (hour <= 22L) return "${if (future) "через " else ""}${TimeUnits.HOUR.plural(hour.toInt())}${if (future) "" else " назад"}"
+    if (hour <= 26L) return "${if (future) "через " else ""}день${if (future) "" else " назад"}"
+
+    val day: Long = hour / 24
+    if (day <= 360L) return "${if (future) "через " else ""}${TimeUnits.DAY.plural(day.toInt())}${if (future) "" else " назад"}"
+
+    return when (future) {
+        true -> "более чем через год"
+        false -> "более года назад"
     }
 }
 
-enum class TimeUnits(
-    private val convertValue: Long,
-    private val declensionValues: List<String>
-) {
-    SECOND(1000, listOf("секунду", "секунды", "секунд")),
-    MINUTE(1000 * 60, listOf("минуту", "минуты", "минут")),
-    HOUR(1000 * 60 * 60, listOf("час", "часа", "часов")),
-    DAY(1000 * 60 * 60 * 24, listOf("день", "дня", "дней"));
+enum class TimeUnits {
+    SECOND {
+        override fun plural(num: Int): String =
+            "$num ${if (num % 10 == 1) "секунду" else if (num % 10 in 2..4) "секунды" else "секунд"}"
+    },
+    MINUTE {
+        override fun plural(num: Int): String =
+            "$num ${if (num % 10 == 1) "минуту" else if (num % 10 in 2..4) "минуты" else "минут"}"
+    },
+    HOUR {
+        override fun plural(num: Int): String =
+            "$num ${if (num % 10 == 1) "час" else if (num % 10 in 2..4) "часа" else "часов"}"
+    },
+    DAY {
+        override fun plural(num: Int): String =
+            "$num ${if (num % 10 == 1) "день" else if (num % 10 in 2..4) "дня" else "дней"}"
+    };
 
-    fun toMillis(value: Int) = convertValue * value
-    fun getValueFromMillis(value: Long) = value / convertValue
-    fun getDeclensionRepresentation(value: Long, isInPast: Boolean) =
-        "${if (isInPast) "" else "через " }${getValueFromMillis(value)} ${getDeclensionStringValue(getValueFromMillis(value))}${if (isInPast) " назад" else ""}"
-
-    private fun getDeclensionStringValue(value: Long): String {
-        return when (val resultValue = abs(value) % 100) {
-            1L -> declensionValues[0]
-            in 2..4 -> declensionValues[1]
-            0L, in 5..20 -> declensionValues[2]
-            else -> getDeclensionStringValue(resultValue % 10)
-        }
-    }
+    abstract fun plural(num: Int): String
 }

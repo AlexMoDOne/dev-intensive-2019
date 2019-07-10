@@ -1,15 +1,18 @@
 package ru.skillbranch.devintensive.extensions
 
-fun String.truncate(value: Int = 16): String {
-    if (this.length - 1 <= value)
-        return this
-    val result = this.trimStart().substring(0, value + 1)
-    if (result[result.length - 1].isWhitespace()) {
-        return result.trim()
+fun String.truncate(len: Int = 16): String {
+    if (this.length <= len) return this
+
+    val str = this.take(len)
+    val str2 = str.trim()
+
+    val len1 = str.length
+    val len2 = str2.length
+
+    return when (len1 == len2 || len1 == len2 + 1) {
+        true -> "$str2..."
+        false -> str2
     }
-    return if (value + 2 <= this.length - 1 && this.trimStart()[value + 2].isWhitespace()) {
-        result
-    } else "$result..."
 }
 
 fun String.stripHtml(): String? =
